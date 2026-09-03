@@ -1,75 +1,69 @@
-# Enterprise Hybrid Infrastructure Lab: On-Premises to Microsoft Azure
+Laboratorio Híbrido: Windows Server 2022 + Azure Arc + Microsoft Entra ID + Azure Policy
 
-## Overview
-This project demonstrates the design, deployment, and security hardening of an enterprise hybrid infrastructure, extending an on-premises Windows Server environment to Microsoft Azure. 
+Proyecto de implementación de una infraestructura de nube híbrida a *coste cero (0 €)*, integrando un entorno local basado en Windows Server 2022 con los servicios de identidad, gestión y gobernanza de Microsoft Azure.
 
-The architecture implements hybrid identity synchronization, secure cross-premises connectivity, centralized cloud governance, and business continuity capabilities aligned with Zero Trust principles.
+---
 
-
-## Architecture Diagram
-![Hybrid Architecture](docs/architecture.png)
+1. ARQUITECTURA Y COMPONENTES
 
 
-## Technical Specifications & Components
-
-### 1. On-Premises Environment (Virtual Lab)
-* **Operating System:** Windows Server 2022 Standard
-* **Roles & Features:** Active Directory Domain Services (AD DS), DNS, IIS Web Server
-* **Local Subnet:** `192.168.10.0/24`
-* **Domain Name:** `corp.local`
-
-### 2. Microsoft Azure Architecture
-* **Virtual Network (VNet):** `10.100.0.0/16`
-  * GatewaySubnet: `10.100.255.0/27` (Virtual Network Gateway)
-  * Workload Subnet: `10.100.1.0/24` (Protected by NSGs)
-* **Hybrid Connectivity:** IPsec/IKE Site-to-Site VPN connecting local perimeter to Azure VNet.
-* **Identity & Access Management:** Hybrid identity powered by **Microsoft Entra Connect** (Password Hash Synchronization).
-* **Cloud Governance & Management:** Hybrid server onboarding via **Azure Arc Connected Machine Agent**.
-* **Business Continuity & Resiliency:** Automated backup of critical server volumes to an **Azure Recovery Services Vault** using the MARS Agent.
-
-## Implementation Phases
-
-### Phase 1: On-Premises Core Infrastructure
-* Provisioned local domain controller and configured Active Directory directory schema.
-* Configured enterprise network segmentation, local DNS forwarders, and IIS services.
-
-### Phase 2: Hybrid Network Interconnection
-* Deployed Azure Virtual Network Gateway and configured Local Network Gateway mapping on-premises endpoints.
-* Established IPsec Site-to-Site tunnel and validated end-to-end bidirectional routing between `192.168.10.0/24` and `10.100.1.0/24`.
-
-### Phase 3: Hybrid Identity Synchronization
-* Installed and configured **Microsoft Entra Connect** on the primary domain controller.
-* Implemented Password Hash Synchronization (PHS) and scoped synchronization to dedicated Organizational Units (OUs).
-
-### Phase 4: Unified Governance via Azure Arc
-* Deployed Azure Connected Machine Agent using a service principal.
-* Applied compliance monitoring policies via **Azure Policy** to audit OS baseline security configurations.
-
-### Phase 5: Disaster Recovery & Backup Integration
-* Provisioned an Azure Recovery Services Vault with geo-redundant storage.
-* Configured scheduled daily backups of critical system files and SQL data volumes.
+ENTORNO ON-PREMISES (Local) :                         
+----------------------------------------------
+Windows Server 2022 Datacenter: WSLab                          
+Dominio AD DS: corp.local                                        
+                                                                 
+- Active Directory Domain Services (AD DS)                
+- Azure Connected Machine Agent (azcmagent)         
+- Microsoft Entra Connect (Sincronización PHS)                       
 
 
-## Verification & Key Artifacts
+Conectividad saliente segura (HTTPS / TLS 1.3)
+-----------------------------------------------
+------------------------------------------------------------------------------------
+|                               MICROSOFT AZURE                                     |
+|                                                                                   |
+|    --------------------------     -----------------------     -----------------   |
+|   |     Azure Arc-enabled    |   |  Microsoft Entra ID   |   |  Azure Policy  |   |
+|   |          Servers         |   |      (Free Tier)      |   |  & Governance  |   |
+|   |                          |   |                       |   |                |   |
+|   |  - Recurso: WSLab        |   | - Tenant configurado  |   | - Ámbito:      |   |
+|   |  - RG: rg-hybrid-lab     |   | - Identidades sync:   |   |   rg-hybrid-lab|   |
+|   |  - Estado: Connected     |   |   xcladera, tuser...  |   | - WSLab:       |   |
+|   |                          |   | - Sync Status: Activo |   |   Compatible   |   |
+|    --------------------------     -----------------------     -----------------   
 
-### 1. Secure Cross-Premises VPN Status
-*Verified active S2S tunnel status:*
-*(Place screenshot here: screenshots/01-vpn-connected.png)*
+### Componentes clave del despliegue:
+* **Host Local:** Windows Server 2022 (`WSLab`) en dominio Active Directory local `corp.local`.
+* **Azure Arc:** Proyección del plano de control de Azure Resource Manager (ARM) sobre el servidor físico/virtual on-premises.
+* **Microsoft Entra ID:** Gestión centralizada de identidades en la nube (capa gratuita).
+* **Microsoft Entra Connect:** Sincronización de identidades de Active Directory a Entra ID mediante *Password Hash Synchronization (PHS)*.
+* **Azure Policy:** Evaluación continua de auditoría y cumplimiento normativo en el servidor híbrido.
 
-### 2. Directory Synchronization Verification
-*Showing synced on-premises users in Microsoft Entra ID admin center:*
-*(Place screenshot here: screenshots/02-entra-synced-users.png)*
+---
 
-### 3. Azure Arc Management
-*Local Windows Server visible and managed as an Azure resource:*
-*(Place screenshot here: screenshots/03-azure-arc-connected.png)*
+2. FASES DE IMPLEMENTACIÓN
 
-### 4. Recovery Services Vault Completed Job
-*Successful backup execution log in Azure:*
-*(Place screenshot here: screenshots/04-backup-success.png)*
+Fase 1: Onboarding del Servidor Local en Azure Arc
 
+1. Creación del grupo de recursos `rg-hybrid-lab` en Azure.
+2. Generación del script de incorporación interactivo en la consola de Azure Arc.
+3. Instalación de `AzureConnectedMachineAgent` en `WSLab`.
+4. Autenticación contra Azure y validación de conectividad a los endpoints del plano de control (`his.arc.azure.com`, `guestconfiguration.azure.com`).
+5. Verificación de estado **Connected** en Azure Portal.
 
-## Author
-**Xavi Cladera**  
-*Systems & Hybrid Infrastructure Administrator*  
-* [LinkedIn Profile](https://www.linkedin.com/in/xavicladera)
+Fase 2: Sincronización de Identidades con Microsoft Entra Connect
+
+1. Despliegue de Active Directory Domain Services (AD DS) en `WSLab` con el dominio `corp.local`.
+2. Creación de usuarios y cuentas de servicio locales (`xcladera`, `tuser`).
+3. Instalación de Microsoft Entra Connect para sincronizar el bosque local con el tenant `xavicladerahotmail.onmicrosoft.com`.
+4. Configuración de sincronización de hash de contraseñas (*Password Hash Synchronization*).
+
+Fase 3: Gobernanza y Auditoría con Azure Policy
+
+1. Asignación de directivas de gobernanza sobre el grupo de recursos `rg-hybrid-lab`:
+   - Auditoría de etiquetas de recursos (`Require a tag on resources`).
+   - Auditoría de membresía de grupos locales (`Audit Windows machines missing any of specified members in the Administrators group`).
+2. Disparo de escaneo de cumplimiento bajo demanda mediante Azure Cloud Shell:
+   ```powershell
+   Start-AzPolicyComplianceScan
+Validación del estado de cumplimiento normativo (Compatible - 100%) reflejado directamente sobre el recurso WSLab.
